@@ -1,0 +1,40 @@
+[flake8]
+max-line-length = 88
+extend-ignore = 
+    E203,  # whitespace before ':'
+    W503,  # line break before binary operator
+    E501,  # line too long (handled by black)
+    W504,  # line break after binary operator
+    E266,  # too many leading '#' for block comment
+    E501,  # line too long
+    F401,  # module imported but unused (handled by isort)
+    F403,  # 'from module import *' used; unable to detect undefined names
+max-complexity = 10
+exclude = 
+    .git,
+    __pycache__,
+    build,
+    dist,
+    venv,
+    .venv,
+    env,
+    .env,
+    migrations,
+    .mypy_cache,
+    .pytest_cache,
+    docs,
+    tests/fixtures,
+    *.egg-info
+per-file-ignores = 
+    __init__.py:F401,F403
+    tests/*:S101,S311,S106
+    */migrations/*:E501
+    docs/*:E501
+    setup.py:E501
+    conftest.py:E501
+inline-quotes = double
+docstring-convention = google
+statistics = True
+count = True
+show-source = True
+hang-closing = True 
