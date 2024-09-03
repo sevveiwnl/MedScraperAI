@@ -1,0 +1,43 @@
+# Alembic Migration Environment for MedScraperAI
+
+This directory contains the Alembic migration environment for the MedScraperAI project.
+
+## Files
+
+- `env.py` - Main environment configuration
+- `script.py.mako` - Template for generating migration scripts
+- `versions/` - Directory containing migration files
+
+## Common Commands
+
+Generate a new migration:
+
+```bash
+alembic revision --autogenerate -m "Description of changes"
+```
+
+Apply migrations:
+
+```bash
+alembic upgrade head
+```
+
+View migration history:
+
+```bash
+alembic history
+```
+
+View current migration:
+
+```bash
+alembic current
+```
+
+## Database Schema
+
+The migrations are generated based on the SQLAlchemy models defined in:
+
+- `backend/app/models/`
+
+The target metadata is configured to use all models imported in `env.py`.

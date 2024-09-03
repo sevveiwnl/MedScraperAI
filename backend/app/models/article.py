@@ -4,9 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import Column, DateTime, Float, Integer, String, Text, func
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from app.db.base import Base
 
 
 class Article(Base):
