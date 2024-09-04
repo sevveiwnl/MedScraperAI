@@ -51,12 +51,12 @@ services:
     networks:
       - medscraper-network
 
-  # Celery Worker
+    # Celery Worker
   celery-worker:
     build:
       context: .
       dockerfile: Dockerfile
-    command: celery -A app.core.celery worker --loglevel=info
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=info
     environment:
       - DATABASE_URL=postgresql://medscraper:medscraper123@db:5432/medscraper_db
       - REDIS_URL=redis://redis:6379/0
@@ -72,12 +72,12 @@ services:
     networks:
       - medscraper-network
 
-  # Celery Beat (Scheduler)
+    # Celery Beat (Scheduler)
   celery-beat:
     build:
       context: .
       dockerfile: Dockerfile
-    command: celery -A app.core.celery beat --loglevel=info
+    command: celery -A app.core.celery_app.celery_app beat --loglevel=info
     environment:
       - DATABASE_URL=postgresql://medscraper:medscraper123@db:5432/medscraper_db
       - REDIS_URL=redis://redis:6379/0
@@ -93,12 +93,12 @@ services:
     networks:
       - medscraper-network
 
-  # Flower (Celery Monitoring) - Development Profile
+    # Flower (Celery Monitoring) - Development Profile
   flower:
     build:
       context: .
       dockerfile: Dockerfile
-    command: celery -A app.core.celery flower --port=5555
+    command: celery -A app.core.celery_app.celery_app flower --port=5555
     ports:
       - "5555:5555"
     environment:
