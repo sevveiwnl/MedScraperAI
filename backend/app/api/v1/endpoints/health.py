@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.db.session import get_db
+from app.db.async_session import async_db
 from app.core.config import settings
 
 
@@ -40,20 +41,27 @@ async def health_check(db: Session = Depends(get_db)):
         "checks": {},
     }
 
-    # Database connectivity check
+    # Synchronous database connectivity check
     try:
         # Simple database query to test connectivity
         db.execute(text("SELECT 1"))
-        health_status["checks"]["database"] = {
+        health_status["checks"]["database_sync"] = {
             "status": "healthy",
-            "message": "Database connection successful",
+            "message": "Synchronous database connection successful",
         }
     except Exception as e:
         health_status["status"] = "unhealthy"
-        health_status["checks"]["database"] = {
+        health_status["checks"]["database_sync"] = {
             "status": "unhealthy",
-            "message": f"Database connection failed: {str(e)}",
+            "message": f"Synchronous database connection failed: {str(e)}",
         }
+
+    # Async database connectivity check
+    async_db_health = await async_db.health_check()
+    health_status["checks"]["database_async"] = async_db_health
+
+    if async_db_health["status"] == "unhealthy":
+        health_status["status"] = "unhealthy"
 
     # System check
     health_status["checks"]["system"] = {
@@ -109,23 +117,43 @@ async def readiness_check(db: Session = Depends(get_db)):
     Returns:
         Readiness status
     """
+    checks = []
+
+    # Test synchronous database connection
     try:
-        # Test database connection
         db.execute(text("SELECT 1"))
-        return {
-            "status": "ready",
-            "timestamp": datetime.utcnow().isoformat(),
-            "message": "Service is ready to handle requests",
-        }
+        checks.append("sync_database: OK")
     except Exception as e:
         raise HTTPException(
             status_code=503,
             detail={
                 "status": "not_ready",
                 "timestamp": datetime.utcnow().isoformat(),
-                "message": f"Service is not ready: {str(e)}",
+                "message": f"Synchronous database not ready: {str(e)}",
             },
         )
+
+    # Test async database connection
+    try:
+        async with async_db.connection() as conn:
+            await conn.fetchval("SELECT 1")
+        checks.append("async_database: OK")
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "timestamp": datetime.utcnow().isoformat(),
+                "message": f"Async database not ready: {str(e)}",
+            },
+        )
+
+    return {
+        "status": "ready",
+        "timestamp": datetime.utcnow().isoformat(),
+        "message": "Service is ready to handle requests",
+        "checks": checks,
+    }
 
 
 @router.get("/live")

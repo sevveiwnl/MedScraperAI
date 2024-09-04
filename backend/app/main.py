@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from app.api.v1.api import api_router
 from app.core.config import settings
+from app.db.async_session import async_db
 
 
 @asynccontextmanager
@@ -14,9 +15,26 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     print("🚀 MedScraperAI is starting up...")
+
+    # Initialize async database connection pool
+    try:
+        await async_db.connect()
+        print("✅ Async database connection pool initialized")
+    except Exception as e:
+        print(f"❌ Failed to initialize async database: {e}")
+        # Don't raise - let the app start anyway for debugging
+
     yield
+
     # Shutdown
     print("🔥 MedScraperAI is shutting down...")
+
+    # Close async database connection pool
+    try:
+        await async_db.disconnect()
+        print("✅ Async database connection pool closed")
+    except Exception as e:
+        print(f"❌ Error closing async database: {e}")
 
 
 # Create FastAPI application
