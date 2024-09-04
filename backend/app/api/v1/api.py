@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health, tasks
+from app.api.v1.endpoints import health, tasks, scraper
 
 
 api_router = APIRouter()
@@ -12,3 +12,6 @@ api_router.include_router(health.router, prefix="/health", tags=["health"])
 
 # Include task management endpoints
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
+
+# Include scraper endpoints
+api_router.include_router(scraper.router, prefix="/scraper", tags=["scraper"])

@@ -7,6 +7,12 @@ from celery.result import AsyncResult
 
 from app.core.celery_app import celery_app
 from app.tasks.ping import simple_ping, slow_ping, random_ping, health_check_task
+from app.tasks.scraper import (
+    scrape_articles_task,
+    scrape_single_article_task,
+    get_article_links_task,
+    test_scraper_task,
+)
 
 
 router = APIRouter()
@@ -126,6 +132,152 @@ async def trigger_health_check_task():
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to submit health check task: {str(e)}"
+        )
+
+
+# Scraper task endpoints
+@router.post("/scraper/scrape", response_model=TaskResponse)
+async def trigger_scrape_articles_task(
+    scraper_name: str,
+    max_articles: int = 10,
+    delay: float = 1.0,
+    timeout: int = 30,
+    max_retries: int = 3,
+):
+    """
+    Trigger a scraping task to scrape articles.
+
+    Args:
+        scraper_name: Name of the scraper to use
+        max_articles: Maximum number of articles to scrape
+        delay: Delay between requests in seconds
+        timeout: Request timeout in seconds
+        max_retries: Maximum number of retry attempts
+
+    Returns:
+        TaskResponse with task ID and status
+    """
+    try:
+        task = scrape_articles_task.delay(
+            scraper_name=scraper_name,
+            max_articles=max_articles,
+            delay=delay,
+            timeout=timeout,
+            max_retries=max_retries,
+        )
+        return TaskResponse(
+            task_id=task.id,
+            status="submitted",
+            message=f"Scraping task submitted for {scraper_name}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to submit scraping task: {str(e)}"
+        )
+
+
+@router.post("/scraper/scrape/single", response_model=TaskResponse)
+async def trigger_scrape_single_article_task(
+    scraper_name: str,
+    url: str,
+    delay: float = 1.0,
+    timeout: int = 30,
+    max_retries: int = 3,
+):
+    """
+    Trigger a task to scrape a single article.
+
+    Args:
+        scraper_name: Name of the scraper to use
+        url: URL of the article to scrape
+        delay: Delay between requests in seconds
+        timeout: Request timeout in seconds
+        max_retries: Maximum number of retry attempts
+
+    Returns:
+        TaskResponse with task ID and status
+    """
+    try:
+        task = scrape_single_article_task.delay(
+            scraper_name=scraper_name,
+            url=url,
+            delay=delay,
+            timeout=timeout,
+            max_retries=max_retries,
+        )
+        return TaskResponse(
+            task_id=task.id,
+            status="submitted",
+            message=f"Single article scraping task submitted for {url}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to submit single article scraping task: {str(e)}",
+        )
+
+
+@router.post("/scraper/links", response_model=TaskResponse)
+async def trigger_get_article_links_task(
+    scraper_name: str,
+    max_articles: int = 10,
+    delay: float = 1.0,
+    timeout: int = 30,
+    max_retries: int = 3,
+):
+    """
+    Trigger a task to get article links.
+
+    Args:
+        scraper_name: Name of the scraper to use
+        max_articles: Maximum number of article links to get
+        delay: Delay between requests in seconds
+        timeout: Request timeout in seconds
+        max_retries: Maximum number of retry attempts
+
+    Returns:
+        TaskResponse with task ID and status
+    """
+    try:
+        task = get_article_links_task.delay(
+            scraper_name=scraper_name,
+            max_articles=max_articles,
+            delay=delay,
+            timeout=timeout,
+            max_retries=max_retries,
+        )
+        return TaskResponse(
+            task_id=task.id,
+            status="submitted",
+            message=f"Article links task submitted for {scraper_name}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to submit article links task: {str(e)}"
+        )
+
+
+@router.post("/scraper/test", response_model=TaskResponse)
+async def trigger_test_scraper_task(scraper_name: str):
+    """
+    Trigger a task to test a scraper.
+
+    Args:
+        scraper_name: Name of the scraper to test
+
+    Returns:
+        TaskResponse with task ID and status
+    """
+    try:
+        task = test_scraper_task.delay(scraper_name=scraper_name)
+        return TaskResponse(
+            task_id=task.id,
+            status="submitted",
+            message=f"Scraper test task submitted for {scraper_name}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to submit scraper test task: {str(e)}"
         )
 
 
