@@ -12,6 +12,8 @@ from app.tasks.scraper import (
     scrape_single_article_task,
     get_article_links_task,
     test_scraper_task,
+    scrape_and_summarize_task,
+    scheduled_scrape_and_summarize_task,
 )
 
 
@@ -260,7 +262,7 @@ async def trigger_get_article_links_task(
 @router.post("/scraper/test", response_model=TaskResponse)
 async def trigger_test_scraper_task(scraper_name: str):
     """
-    Trigger a task to test a scraper.
+    Trigger a test scraper task to verify scraper functionality.
 
     Args:
         scraper_name: Name of the scraper to test
@@ -273,11 +275,80 @@ async def trigger_test_scraper_task(scraper_name: str):
         return TaskResponse(
             task_id=task.id,
             status="submitted",
-            message=f"Scraper test task submitted for {scraper_name}",
+            message=f"Test scraper task submitted for {scraper_name}",
         )
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to submit scraper test task: {str(e)}"
+            status_code=500, detail=f"Failed to submit test scraper task: {str(e)}"
+        )
+
+
+@router.post("/scraper/scrape-and-summarize", response_model=TaskResponse)
+async def trigger_scrape_and_summarize_task(
+    scraper_name: str,
+    max_articles: int = 10,
+    delay: float = 1.0,
+    timeout: int = 30,
+    max_retries: int = 3,
+    summarize_style: str = "professional",
+    summarize_focus: str = "medical",
+):
+    """
+    Trigger a task to scrape articles and automatically summarize them.
+
+    Args:
+        scraper_name: Name of the scraper to use
+        max_articles: Maximum number of articles to scrape
+        delay: Delay between requests in seconds
+        timeout: Request timeout in seconds
+        max_retries: Maximum number of retry attempts
+        summarize_style: Style of summary (professional, casual, academic)
+        summarize_focus: Focus area for summary (medical, general, technical)
+
+    Returns:
+        TaskResponse with task ID and status
+    """
+    try:
+        task = scrape_and_summarize_task.delay(
+            scraper_name=scraper_name,
+            max_articles=max_articles,
+            delay=delay,
+            timeout=timeout,
+            max_retries=max_retries,
+            summarize_style=summarize_style,
+            summarize_focus=summarize_focus,
+        )
+        return TaskResponse(
+            task_id=task.id,
+            status="submitted",
+            message=f"Scrape and summarize task submitted for {scraper_name}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to submit scrape and summarize task: {str(e)}",
+        )
+
+
+@router.post("/scraper/scheduled-scrape-and-summarize", response_model=TaskResponse)
+async def trigger_scheduled_scrape_and_summarize_task():
+    """
+    Trigger a scheduled scrape and summarize task for all scrapers.
+
+    Returns:
+        TaskResponse with task ID and status
+    """
+    try:
+        task = scheduled_scrape_and_summarize_task.delay()
+        return TaskResponse(
+            task_id=task.id,
+            status="submitted",
+            message="Scheduled scrape and summarize task submitted",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to submit scheduled scrape and summarize task: {str(e)}",
         )
 
 

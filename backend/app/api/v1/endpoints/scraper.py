@@ -366,28 +366,148 @@ async def scrape_and_save_articles(request: ScrapeArticlesRequest):
 @router.post("/scheduled-scrape", response_model=Dict[str, Any])
 async def trigger_scheduled_scrape():
     """
-    Manually trigger a scheduled scrape of all available scrapers.
+    Trigger scheduled scraping task manually.
 
     Returns:
-        Task ID for monitoring the scraping progress
-
-    Raises:
-        HTTPException: If operation fails
+        Task ID and status information
     """
     try:
         from app.tasks.scraper import scheduled_scrape_task
 
-        # Start the scheduled scraping task
-        task = scheduled_scrape_task.delay()
+        task = scheduled_scrape_task.apply_async()
 
         return {
             "success": True,
             "task_id": task.id,
-            "message": "Scheduled scraping task started for all scrapers",
-            "scrapers": scraper_service.get_available_scrapers(),
+            "message": "Scheduled scraping task started",
+            "status": "PENDING",
         }
 
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Failed to start scheduled scraping task: {str(e)}"
+            status_code=500, detail=f"Failed to start scheduled scraping: {str(e)}"
+        )
+
+
+class ScrapeAndSummarizeRequest(BaseModel):
+    """Request model for scraping and summarizing articles."""
+
+    scraper_name: str = Field(..., description="Name of the scraper to use")
+    max_articles: int = Field(
+        10, ge=1, le=100, description="Maximum number of articles to scrape"
+    )
+    delay: float = Field(
+        1.0, ge=0.1, le=5.0, description="Delay between requests in seconds"
+    )
+    timeout: int = Field(30, ge=5, le=120, description="Request timeout in seconds")
+    max_retries: int = Field(
+        3, ge=1, le=10, description="Maximum number of retry attempts"
+    )
+    summarize_style: str = Field(
+        "professional", description="Style of summary (professional, casual, academic)"
+    )
+    summarize_focus: str = Field(
+        "medical", description="Focus area for summary (medical, general, technical)"
+    )
+
+
+class ScrapeAndSummarizeResponse(BaseModel):
+    """Response model for scraping and summarizing articles."""
+
+    success: bool
+    task_id: str
+    message: str
+    status: str
+
+
+@router.post("/scrape-and-summarize", response_model=ScrapeAndSummarizeResponse)
+async def scrape_and_summarize_articles(request: ScrapeAndSummarizeRequest):
+    """
+    Scrape articles and automatically summarize them.
+
+    Args:
+        request: Request containing scraper settings and summarization preferences
+
+    Returns:
+        Task ID and status information
+
+    Raises:
+        HTTPException: If scraper is not found or operation fails
+    """
+    try:
+        # Validate scraper exists
+        if not scraper_service.get_scraper_info(request.scraper_name):
+            raise HTTPException(
+                status_code=404, detail=f"Scraper '{request.scraper_name}' not found"
+            )
+
+        # Validate summarization parameters
+        valid_styles = ["professional", "casual", "academic"]
+        if request.summarize_style not in valid_styles:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid summarize_style. Must be one of: {valid_styles}",
+            )
+
+        valid_focus = ["medical", "general", "technical"]
+        if request.summarize_focus not in valid_focus:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid summarize_focus. Must be one of: {valid_focus}",
+            )
+
+        from app.tasks.scraper import scrape_and_summarize_task
+
+        task = scrape_and_summarize_task.apply_async(
+            args=[
+                request.scraper_name,
+                request.max_articles,
+                request.delay,
+                request.timeout,
+                request.max_retries,
+                request.summarize_style,
+                request.summarize_focus,
+            ]
+        )
+
+        return ScrapeAndSummarizeResponse(
+            success=True,
+            task_id=task.id,
+            message=f"Scrape and summarize task started for {request.scraper_name}",
+            status="PENDING",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start scrape and summarize task: {str(e)}",
+        )
+
+
+@router.post("/scheduled-scrape-and-summarize", response_model=Dict[str, Any])
+async def trigger_scheduled_scrape_and_summarize():
+    """
+    Trigger scheduled scraping and summarization task manually.
+
+    Returns:
+        Task ID and status information
+    """
+    try:
+        from app.tasks.scraper import scheduled_scrape_and_summarize_task
+
+        task = scheduled_scrape_and_summarize_task.apply_async()
+
+        return {
+            "success": True,
+            "task_id": task.id,
+            "message": "Scheduled scrape and summarize task started",
+            "status": "PENDING",
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to start scheduled scrape and summarize: {str(e)}",
         )

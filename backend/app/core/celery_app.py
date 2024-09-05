@@ -55,6 +55,12 @@ celery_app.conf.update(
             "schedule": 4 * 60 * 60,  # 4 hours in seconds
             "options": {"queue": "scraper"},
         },
+        # Scheduled scrape and summarize every 6 hours
+        "scheduled-scrape-and-summarize": {
+            "task": "scraper.scheduled_scrape_and_summarize",
+            "schedule": 6 * 60 * 60,  # 6 hours in seconds
+            "options": {"queue": "scraper"},
+        },
         # Daily ping task for monitoring
         "daily-ping": {
             "task": "ping.ping_task",

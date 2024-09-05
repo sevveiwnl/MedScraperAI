@@ -8,6 +8,10 @@ from app.core.celery_app import celery_app
 from app.services.scraper_service import scraper_service
 from app.services.article_service import ArticleService
 from app.db.session import get_db
+from app.tasks.nlp import (
+    summarize_article_task,
+    batch_summarize_task,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -655,3 +659,217 @@ def scheduled_scrape_task(self) -> Dict[str, Any]:
             "task_id": self.request.id,
             "timestamp": datetime.utcnow().isoformat(),
         }
+
+
+@celery_app.task(bind=True, name="scraper.scrape_and_summarize")
+def scrape_and_summarize_task(
+    self,
+    scraper_name: str,
+    max_articles: int = 10,
+    delay: float = 1.0,
+    timeout: int = 30,
+    max_retries: int = 3,
+    summarize_style: str = "professional",
+    summarize_focus: str = "medical",
+) -> Dict[str, Any]:
+    """
+    Scrape articles and automatically summarize them.
+
+    Args:
+        scraper_name: Name of the scraper to use
+        max_articles: Maximum number of articles to scrape
+        delay: Delay between requests in seconds
+        timeout: Request timeout in seconds
+        max_retries: Maximum number of retry attempts
+        summarize_style: Style of summary (professional, casual, academic)
+        summarize_focus: Focus area for summary (medical, general, technical)
+
+    Returns:
+        Dict containing scraped articles, summaries, and statistics
+    """
+    logger.info(f"Starting scrape_and_summarize task: {scraper_name}")
+
+    # Update task state
+    self.update_state(
+        state="PROGRESS",
+        meta={
+            "current": 0,
+            "total": max_articles,
+            "status": f"Starting scrape and summarize: {scraper_name}",
+            "scraper_name": scraper_name,
+            "phase": "scraping",
+        },
+    )
+
+    try:
+        # First, scrape and save articles
+        scrape_result = scrape_and_save_articles_task.apply_async(
+            args=[scraper_name, max_articles, delay, timeout, max_retries]
+        ).get()
+
+        if not scrape_result["success"]:
+            logger.error(f"Scraping phase failed: {scrape_result['error']}")
+            return {
+                "success": False,
+                "error": f"Scraping failed: {scrape_result['error']}",
+                "task_id": self.request.id,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        scraped_articles = scrape_result["articles"]
+        article_ids = [article["id"] for article in scraped_articles]
+
+        # Update task state for summarization phase
+        self.update_state(
+            state="PROGRESS",
+            meta={
+                "current": len(scraped_articles),
+                "total": max_articles,
+                "status": f"Starting summarization for {len(scraped_articles)} articles",
+                "scraper_name": scraper_name,
+                "phase": "summarizing",
+                "scraped_count": len(scraped_articles),
+            },
+        )
+
+        # Batch summarize the scraped articles
+        summarize_result = batch_summarize_task.apply_async(
+            args=[article_ids, summarize_style, summarize_focus]
+        ).get()
+
+        if not summarize_result["success"]:
+            logger.warning(f"Summarization phase failed: {summarize_result['error']}")
+            # Continue with partial success - scraping succeeded
+            return {
+                "success": True,
+                "scraper_name": scraper_name,
+                "articles": scraped_articles,
+                "statistics": scrape_result["statistics"],
+                "scraper_info": scrape_result["scraper_info"],
+                "summarization_error": summarize_result["error"],
+                "task_id": self.request.id,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        # Success - both scraping and summarization completed
+        self.update_state(
+            state="SUCCESS",
+            meta={
+                "current": len(scraped_articles),
+                "total": max_articles,
+                "status": f"Completed scraping and summarizing {len(scraped_articles)} articles",
+                "scraper_name": scraper_name,
+                "phase": "completed",
+                "scraped_count": len(scraped_articles),
+                "summarized_count": len(summarize_result["results"]),
+            },
+        )
+
+        logger.info(f"Scrape and summarize completed: {len(scraped_articles)} articles")
+
+        return {
+            "success": True,
+            "scraper_name": scraper_name,
+            "articles": scraped_articles,
+            "summaries": summarize_result["results"],
+            "statistics": scrape_result["statistics"],
+            "scraper_info": scrape_result["scraper_info"],
+            "summarization_stats": summarize_result["statistics"],
+            "task_id": self.request.id,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Scrape and summarize task failed: {str(e)}")
+        self.update_state(
+            state="FAILURE",
+            meta={
+                "status": f"Error: {str(e)}",
+                "scraper_name": scraper_name,
+            },
+        )
+        return {
+            "success": False,
+            "error": str(e),
+            "task_id": self.request.id,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+
+@celery_app.task(bind=True, name="scraper.scheduled_scrape_and_summarize")
+def scheduled_scrape_and_summarize_task(self) -> Dict[str, Any]:
+    """
+    Scheduled task to scrape and summarize articles from all available scrapers.
+
+    Returns:
+        Dict containing results from all scrapers
+    """
+    logger.info("Starting scheduled scrape and summarize task")
+
+    # Get available scrapers
+    scrapers = ["medical_news_today"]  # Add more scrapers as they're implemented
+
+    results = []
+    total_articles = 0
+    total_summaries = 0
+
+    for scraper_name in scrapers:
+        logger.info(f"Processing scraper: {scraper_name}")
+
+        try:
+            # Run scrape_and_summarize for each scraper
+            result = scrape_and_summarize_task.apply_async(
+                args=[scraper_name, 5, 1.0, 30, 3, "professional", "medical"]
+            ).get()
+
+            if result["success"]:
+                scraped_count = len(result["articles"])
+                summarized_count = len(result.get("summaries", []))
+                total_articles += scraped_count
+                total_summaries += summarized_count
+
+                logger.info(
+                    f"Successfully processed {scraped_count} articles from {scraper_name}"
+                )
+
+                results.append(
+                    {
+                        "scraper_name": scraper_name,
+                        "success": True,
+                        "articles_scraped": scraped_count,
+                        "articles_summarized": summarized_count,
+                        "statistics": result["statistics"],
+                    }
+                )
+            else:
+                logger.error(f"Failed to process {scraper_name}: {result['error']}")
+                results.append(
+                    {
+                        "scraper_name": scraper_name,
+                        "success": False,
+                        "error": result["error"],
+                    }
+                )
+
+        except Exception as e:
+            logger.error(f"Exception processing {scraper_name}: {str(e)}")
+            results.append(
+                {
+                    "scraper_name": scraper_name,
+                    "success": False,
+                    "error": str(e),
+                }
+            )
+
+    logger.info(
+        f"Scheduled scrape and summarize completed: {total_articles} articles, {total_summaries} summaries"
+    )
+
+    return {
+        "success": True,
+        "results": results,
+        "total_articles": total_articles,
+        "total_summaries": total_summaries,
+        "task_id": self.request.id,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
