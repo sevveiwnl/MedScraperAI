@@ -92,3 +92,40 @@ class Article(ArticleResponse):
     """Complete Article schema (alias for ArticleResponse)."""
 
     pass
+
+
+class ArticleListResponse(BaseModel):
+    """Schema for paginated article list responses."""
+
+    articles: list[ArticleResponse]
+    total: int
+    page: int
+    per_page: int
+    has_next: bool
+    has_prev: bool
+
+
+class ArticleSearchResponse(BaseModel):
+    """Schema for article search responses."""
+
+    articles: list[ArticleResponse]
+    total: int
+    page: int
+    per_page: int
+    has_next: bool
+    has_prev: bool
+    query: str
+    search_fields: list[str]
+
+
+class ArticleStatsResponse(BaseModel):
+    """Schema for article statistics responses."""
+
+    total_articles: int
+    recent_articles: int
+    average_credibility: float
+    high_credibility_articles: int
+    sources: list[dict]
+    categories: list[dict]
+    last_updated: str
+    error: Optional[str] = None
