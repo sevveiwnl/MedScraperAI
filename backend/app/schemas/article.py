@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field, HttpUrl, validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 
 class ArticleBase(BaseModel):
@@ -29,14 +29,14 @@ class ArticleBase(BaseModel):
         None, max_length=500, description="Comma-separated tags"
     )
 
-    @validator("url")
+    @field_validator("url")
     def validate_url(cls, v):
         """Validate URL format."""
         if not v.startswith(("http://", "https://")):
             raise ValueError("URL must start with http:// or https://")
         return v
 
-    @validator("credibility_score")
+    @field_validator("credibility_score")
     def validate_credibility_score(cls, v):
         """Validate credibility score range."""
         if v is not None and not (0.0 <= v <= 1.0):
@@ -67,7 +67,7 @@ class ArticleUpdate(BaseModel):
     category: Optional[str] = Field(None, max_length=100)
     tags: Optional[str] = Field(None, max_length=500)
 
-    @validator("url")
+    @field_validator("url")
     def validate_url(cls, v):
         """Validate URL format."""
         if v is not None and not v.startswith(("http://", "https://")):

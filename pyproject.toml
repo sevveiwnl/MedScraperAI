@@ -9,14 +9,15 @@ description = "MedScraperAI - Advanced medical data scraping and research platfo
 authors = [
     {name = "MedScraperAI Team", email = "team@medscrapper.ai"}
 ]
-readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Healthcare Industry",
-    "Intended Audience :: Medical Researchers",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -71,7 +72,7 @@ medscrapper = "app.main:app"
 
 [tool.black]
 line-length = 88
-target-version = ['py311']
+target-version = ['py39']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -94,7 +95,7 @@ line_length = 88
 known_first_party = ["app"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

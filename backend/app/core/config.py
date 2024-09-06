@@ -3,7 +3,8 @@
 import os
 from typing import List, Optional
 
-from pydantic import BaseSettings, validator
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -42,7 +43,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "JSON"
 
-    @validator("BACKEND_CORS_ORIGINS", pre=True)
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v):
         """Parse CORS origins from environment variable."""
         if isinstance(v, str) and not v.startswith("["):
@@ -51,26 +52,26 @@ class Settings(BaseSettings):
             return v
         raise ValueError(v)
 
-    @validator("DATABASE_URL", pre=True)
+    @field_validator("DATABASE_URL", mode="before")
     def assemble_db_connection(cls, v):
         """Set default database URL if not provided."""
         if isinstance(v, str):
             return v
         return "postgresql://medscraper:medscraper123@localhost:5432/medscraper_db"
 
-    @validator("CELERY_BROKER_URL", pre=True)
-    def assemble_celery_broker(cls, v, values):
+    @field_validator("CELERY_BROKER_URL", mode="before")
+    def assemble_celery_broker(cls, v, info):
         """Set Celery broker URL from Redis URL if not provided."""
         if isinstance(v, str):
             return v
-        return values.get("REDIS_URL", "redis://localhost:6379/0")
+        return info.data.get("REDIS_URL", "redis://localhost:6379/0")
 
-    @validator("CELERY_RESULT_BACKEND", pre=True)
-    def assemble_celery_backend(cls, v, values):
+    @field_validator("CELERY_RESULT_BACKEND", mode="before")
+    def assemble_celery_backend(cls, v, info):
         """Set Celery result backend URL from Redis URL if not provided."""
         if isinstance(v, str):
             return v
-        return values.get("REDIS_URL", "redis://localhost:6379/0")
+        return info.data.get("REDIS_URL", "redis://localhost:6379/0")
 
     class Config:
         """Pydantic configuration."""

@@ -62,6 +62,34 @@ class SummarizerService:
         wait=wait_exponential(multiplier=1, min=4, max=10),
         retry=retry_if_exception_type(Exception),
     )
+    def _summarize_text_with_retry(
+        self,
+        text: str,
+        max_length: int = 200,
+        min_length: int = 50,
+        style: str = "professional",
+        focus: str = "medical",
+    ) -> Dict[str, Any]:
+        """
+        Internal method to generate a summary with retry logic.
+        """
+        if self.summarizer_type == SummarizerType.OPENAI:
+            return self._summarize_with_openai(
+                text, max_length, min_length, style, focus
+            )
+        elif self.summarizer_type == SummarizerType.BART:
+            return self._summarize_with_bart(text, max_length, min_length, style, focus)
+        else:
+            return {
+                "success": False,
+                "error": f"Unsupported summarizer type: {self.summarizer_type}",
+                "summary": None,
+                "metadata": {
+                    "summarizer_type": self.summarizer_type.value,
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+            }
+
     def summarize_text(
         self,
         text: str,
@@ -95,16 +123,15 @@ class SummarizerService:
                 },
             }
 
-        if self.summarizer_type == SummarizerType.OPENAI:
-            return self._summarize_with_openai(
+        try:
+            return self._summarize_text_with_retry(
                 text, max_length, min_length, style, focus
             )
-        elif self.summarizer_type == SummarizerType.BART:
-            return self._summarize_with_bart(text, max_length, min_length, style, focus)
-        else:
+        except Exception as e:
+            logger.error(f"Summarization failed after retries: {str(e)}")
             return {
                 "success": False,
-                "error": f"Unsupported summarizer type: {self.summarizer_type}",
+                "error": f"Summarization failed after retries: {str(e)}",
                 "summary": None,
                 "metadata": {
                     "summarizer_type": self.summarizer_type.value,
