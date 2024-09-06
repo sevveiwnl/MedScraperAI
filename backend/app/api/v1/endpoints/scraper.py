@@ -321,3 +321,73 @@ async def test_scraper(scraper_name: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to test scraper: {str(e)}")
+
+
+@router.post("/scrape-and-save", response_model=Dict[str, Any])
+async def scrape_and_save_articles(request: ScrapeArticlesRequest):
+    """
+    Scrape articles and save them to the database.
+
+    Args:
+        request: Scraping request parameters
+
+    Returns:
+        Task ID for monitoring the scraping progress
+
+    Raises:
+        HTTPException: If scraper is not found or operation fails
+    """
+    try:
+        from app.tasks.scraper import scrape_and_save_articles_task
+
+        # Start the scraping task
+        task = scrape_and_save_articles_task.delay(
+            scraper_name=request.scraper_name,
+            max_articles=request.max_articles,
+            delay=request.delay,
+            timeout=request.timeout,
+            max_retries=request.max_retries,
+        )
+
+        return {
+            "success": True,
+            "task_id": task.id,
+            "message": f"Scraping task started for {request.scraper_name}",
+            "scraper_name": request.scraper_name,
+            "max_articles": request.max_articles,
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to start scraping task: {str(e)}"
+        )
+
+
+@router.post("/scheduled-scrape", response_model=Dict[str, Any])
+async def trigger_scheduled_scrape():
+    """
+    Manually trigger a scheduled scrape of all available scrapers.
+
+    Returns:
+        Task ID for monitoring the scraping progress
+
+    Raises:
+        HTTPException: If operation fails
+    """
+    try:
+        from app.tasks.scraper import scheduled_scrape_task
+
+        # Start the scheduled scraping task
+        task = scheduled_scrape_task.delay()
+
+        return {
+            "success": True,
+            "task_id": task.id,
+            "message": "Scheduled scraping task started for all scrapers",
+            "scrapers": scraper_service.get_available_scrapers(),
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to start scheduled scraping task: {str(e)}"
+        )

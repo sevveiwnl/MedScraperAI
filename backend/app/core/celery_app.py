@@ -49,7 +49,18 @@ celery_app.conf.update(
     task_send_sent_event=True,
     # Beat schedule (for periodic tasks)
     beat_schedule={
-        # Will be populated with periodic tasks later
+        # Scheduled scraping every 4 hours
+        "scheduled-scrape": {
+            "task": "scraper.scheduled_scrape",
+            "schedule": 4 * 60 * 60,  # 4 hours in seconds
+            "options": {"queue": "scraper"},
+        },
+        # Daily ping task for monitoring
+        "daily-ping": {
+            "task": "ping.ping_task",
+            "schedule": 24 * 60 * 60,  # 24 hours in seconds
+            "options": {"queue": "ping"},
+        },
     },
 )
 

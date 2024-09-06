@@ -8,11 +8,11 @@ September 2024 (Foundation – 30 commits)
 2024-09-03 Create async PostgreSQL pool via asyncpg
 2024-09-04 Scaffold Celery app + 'ping' task
 2024-09-04 Implement Medical News Today scraper (HTML)
-2024-09-05 Persist scraped items via repository layer
+2024-09-05 Article endpoints and search functionality
+2024-09-05 Connect scraper to database and add scheduled scraping
 2024-09-05 Add OpenAI/BART summarizer helper
 2024-09-05 Add Celery task scrape_and_summarize & beat schedule
 2024-09-06 Add duplicate detection by URL hash
-2024-09-06 Add /articles, /refresh, /summary/{id} API routes
 2024-09-07 Keyword alert logic + stub Slack webhook
 2024-09-07 Add React frontend setup with Vite + TypeScript + Tailwind
 2024-09-07 Create main dashboard layout + navigation components
